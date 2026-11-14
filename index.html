@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>알짜 짝맞추기 - 무료 두뇌 게임</title>
+<meta name="description" content="설치 없이 바로 즐기는 카드 짝맞추기. 스테이지가 이어지는 연속 도전, 콤보, 스티커 수집, 내 기록 순위!">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,"Malgun Gothic",sans-serif;background:#f4f1ea;color:#2b2b2b;min-height:100vh;overflow-x:hidden}
+#app{display:flex;flex-direction:column;align-items:center;min-height:100vh}
+#app.shake{animation:shake .7s}
+@keyframes shake{0%,100%{transform:translate(0,0)}10%{transform:translate(-14px,6px) rotate(-1.2deg)}20%{transform:translate(12px,-8px) rotate(1deg)}30%{transform:translate(-10px,-6px) rotate(-.8deg)}40%{transform:translate(10px,8px) rotate(.8deg)}50%{transform:translate(-8px,4px)}60%{transform:translate(8px,-4px)}70%{transform:translate(-5px,3px)}80%{transform:translate(4px,-2px)}}
+h1{font-size:22px;margin:14px 0 2px}
+.bar{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;justify-content:center}
+button{border:0;border-radius:10px;padding:9px 14px;font-size:15px;background:#2b6cb0;color:#fff;cursor:pointer}
+button.g{background:#868e96}
+button.r{background:#e03131}
+.hud{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:4px 0}
+.hud div{background:#fff;border-radius:10px;padding:5px 10px;font-size:14px;box-shadow:0 1px 3px #0002}
+.hud b{font-size:17px}
+#combo{min-height:26px;font-weight:bold;font-size:18px;color:#e8590c}
+#board{display:grid;gap:8px;width:min(94vw,460px);margin:8px 0}
+.card{aspect-ratio:1;perspective:600px;cursor:pointer}
+.in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
+.card.f .in,.card.m .in{transform:rotateY(180deg)}
+.face,.back{position:absolute;inset:0;border-radius:12px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden}
+.back{background:#2b6cb0;color:#fff;font-size:24px}
+.face{background:#fff;transform:rotateY(180deg);font-size:clamp(22px,7vw,42px);box-shadow:0 1px 4px #0003}
+.card.m .face{background:#d3f9d8;animation:pop .45s}
+@keyframes pop{40%{transform:rotateY(180deg) scale(1.25)}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:5}
+#toast{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:8}
+#toast.show{display:flex}
+#toast .t{background:#fffffff2;border:4px solid #fcc419;border-radius:22px;padding:18px 26px;text-align:center;animation:boom .6s;box-shadow:0 8px 30px #0005}
+@keyframes boom{from{transform:scale(.3) rotate(-8deg);opacity:0}60%{transform:scale(1.15)}}
+#toast h2{margin:0;font-size:30px;color:#e8590c}
+.stars{font-size:32px;letter-spacing:3px}
+.big{font-size:60px;animation:bounce 1s infinite}
+@keyframes bounce{50%{transform:translateY(-8px) rotate(8deg)}}
+#modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:10;overflow:auto}
+#modal.show{display:flex}
+.box{background:#fff;border-radius:18px;padding:20px;width:min(92vw,380px);text-align:center;animation:rise .5s;margin:12px 0}
+@keyframes rise{from{transform:translateY(40px) scale(.85);opacity:0}}
+.score{font-size:44px;font-weight:900;color:#e8590c;margin:2px 0}
+.tier{font-size:20px;font-weight:bold;margin:2px 0 8px}
+.fort{background:#fff3bf;border-radius:10px;padding:9px;margin:10px 0;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0}
+td,th{padding:4px 6px;border-bottom:1px solid #eee}
+tr.me{background:#ffe8cc;font-weight:bold}
+.stk{font-size:26px}
+.new{color:#e8590c;font-weight:bold}
+#coll{display:none;flex-wrap:wrap;gap:6px;justify-content:center;width:min(94vw,460px);background:#fff;border-radius:12px;padding:10px;margin-bottom:12px;font-size:28px}
+#coll.show{display:flex}
+#coll span.lock{filter:grayscale(1) opacity(.25)}
+#coll small{width:100%;font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+<h1>🃏 알짜 짝맞추기</h1>
+<div class="hud">
+  <div>스테이지 <b id="st">1</b></div>
+  <div>점수 <b id="sc">0</b></div>
+  <div>시간 <b id="t">0</b>초</div>
+  <div>시도 <b id="n">0</b></div>
+</div>
+<div id="combo"></div>
+<div id="board"></div>
+<div class="bar">
+  <button class="g" id="bm" onclick="toggleMusic()">🎵 음악 켜기</button>
+  <button class="g" onclick="toggleColl()">📚 스티커북</button>
+  <button class="r" onclick="quit()">🏁 그만하기</button>
+</div>
+<div id="coll"></div>
+</div>
+<canvas id="fx"></canvas>
+<div id="toast"><div class="t" id="tbox"></div></div>
+<div id="modal"><div class="box" id="mbox"></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const mem={};
+const store={
+  get(k){try{return localStorage.getItem(k)}catch(e){return k in mem?mem[k]:null}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=String(v)}}
+};
+const E=["🍎","🍊","🍋","🍇","🍓","🍑","🥝","🍉","🍒","🥑","🌽","🥕","🍔","🍕","🍩","🍪","🧀","🍙"];
+const GRIDS=[[4,3],[4,4],[5,4],[6,5],[6,6]]; // 스테이지가 오를수록 커짐 (5 이후는 6x6 유지)
+
+/* ================= 사운드 (WebAudio 합성, 외부 파일 없음) ================= */
+let AC=null,master=null,noiseBuf=null,musicOn=false,musicTimer=null,mStep=0,nextT=0;
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function ac(){
+  if(!AC){
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    const comp=AC.createDynamicsCompressor();
+    master=AC.createGain();master.gain.value=.9;
+    master.connect(comp);comp.connect(AC.destination);
+    noiseBuf=AC.createBuffer(1,AC.sampleRate*1,AC.sampleRate);
+    const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  }
+  if(AC.state==="suspended")AC.resume();
+  return AC;
+}
+function tone(f,t0,d,type="sine",v=.2,opt={}){
+  const a=ac(),o=a.createOscillator(),g=a.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t0);
+  if(opt.slide)o.frequency.exponentialRampToValueAtTime(opt.slide,t0+d);
+  g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(v,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+  let out=g;
+  if(opt.lp){const lp=a.createBiquadFilter();lp.type="lowpass";lp.frequency.value=opt.lp;o.connect(lp);lp.connect(g)}else o.connect(g);
+  g.connect(opt.dest||master);o.start(t0);o.stop(t0+d+.05);
+}
+function noise(t0,d,v,hp=6000,dest){
+  const a=ac(),s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();
+  s.buffer=noiseBuf;f.type="highpass";f.frequency.value=hp;
+  g.gain.setValueAtTime(v,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+  s.connect(f);f.connect(g);g.connect(dest||master);s.start(t0);s.stop(t0+d+.02);
+}
+function sfx(k,n=1){
+  try{
+    const a=ac(),t=a.currentTime;
+    if(k==="flip"){tone(700,t,.07,"triangle",.22,{slide:1000})}
+    if(k==="match"){ // 반짝이는 상승 아르페지오 + 종소리 (콤보가 높을수록 음이 올라감)
+      const sh=Math.pow(2,Math.min(n-1,7)/12);
+      [523,659,784,1047,1319].forEach((f,i)=>{
+        tone(f*sh,t+i*.055,.28,"square",.16,{lp:4000});
+        tone(f*sh*2,t+i*.055,.35,"sine",.18);
+      });
+      noise(t,.18,.12,7000);
+    }
+    if(k==="miss"){tone(300,t,.28,"sawtooth",.16,{slide:110,lp:900})}
+    if(k==="combo"){ // 콤보 확장 사운드
+      const sh=Math.pow(2,Math.min(n,8)/12);
+      [784,988,1175,1568,1976].forEach((f,i)=>tone(f*sh,t+i*.05,.3,"triangle",.28));
+      tone(130*sh,t,.4,"sawtooth",.18,{lp:600});
+      noise(t,.3,.18,5000);
+    }
+    if(k==="fanfare"){ // 팡파레 (트럼펫 느낌)
+      const seq=[[392,0,.11],[523,.11,.11],[659,.22,.11],[784,.33,.11],[659,.5,.1],[784,.62,.12],[1047,.8,.9]];
+      seq.forEach(([f,s,d])=>{
+        tone(f,t+s,d+.15,"sawtooth",.26,{lp:2600});
+        tone(f*2,t+s,d+.1,"square",.07,{lp:3000});
+      });
+      [523,659,784].forEach(f=>tone(f,t+.8,1,"sawtooth",.16,{lp:1800}));
+      tone(131,t+.8,1,"triangle",.3);
+      noise(t+.8,1,.3,3000);noise(t,.15,.2,4000);
+    }
+    if(k==="rare"){[784,988,1175,1568,1175,1568,1976,2349].forEach((f,i)=>tone(f,t+i*.08,.35,"sine",.28))}
+    if(k==="end"){[784,659,523,392].forEach((f,i)=>tone(f,t+i*.16,.35,"triangle",.28))}
+  }catch(e){}
+}
+/* 경쾌한 BGM: 152BPM, C - G - Am - F 코드 진행, 멜로디+베이스+킥+하이햇 */
+const BPM=152,SP=60/BPM/2;
+const MEL=[76,79,84,79,76,79,76,74, 74,79,83,79,74,79,83,79, 72,76,81,76,72,76,81,79, 81,84,89,84,81,84,81,79];
+const ROOT=[48,43,45,41];
+const CH=[[60,64,67],[59,62,67],[57,60,64],[57,60,65]];
+let bus=null; // 음악 전용 채널: 끌 때 이 채널을 즉시 끊어서 확실히 무음 처리
+function playStep(s,t){
+  if(!bus)return;
+  const bar=Math.floor(s/8)%4,i=s%8,gi=s%32,o={dest:bus};
+  tone(mtof(MEL[gi]),t,SP*1.6,"square",.05,{lp:2800,dest:bus});
+  if(i%2===0)tone(mtof(ROOT[bar]),t,SP*1.8,"triangle",.17,o);
+  if(i===2||i===6)CH[bar].forEach(m=>tone(mtof(m),t,SP*1.2,"triangle",.045,o));
+  if(i===0||i===4)tone(150,t,.14,"sine",.35,{slide:45,dest:bus});  // 킥
+  if(i===2||i===6)noise(t,.09,.10,2500,bus);                       // 스네어 느낌
+  noise(t,.03,i%2?.05:.03,8000,bus);                               // 하이햇
+}
+function sched(){
+  if(!musicOn)return;
+  const a=ac();
+  while(nextT<a.currentTime+.2){playStep(mStep,nextT);nextT+=SP;mStep++}
+}
+function setMusic(on){
+  musicOn=on;clearInterval(musicTimer);musicTimer=null;
+  if(on){
+    ac();
+    bus=AC.createGain();bus.gain.value=1;bus.connect(master);
+    mStep=0;nextT=AC.currentTime+.06;musicTimer=setInterval(sched,50);
+  }else if(bus){
+    const b=bus;bus=null;               // 새 음이 더 이상 만들어지지 않게 하고
+    try{b.gain.cancelScheduledValues(0);b.gain.setValueAtTime(0,AC.currentTime)}catch(e){} // 이미 예약된 소리도 즉시 무음
+    setTimeout(()=>{try{b.disconnect()}catch(e){}},300);
+  }
+  $("bm").textContent=on?"🔇 음악 끄기":"🎵 음악 켜기";
+}
+function toggleMusic(){setMusic(!musicOn)}
+
+/* ================= 게임 ================= */
+let stage=1,runScore=0,runTime=0,runBestStreak=0,runCleared=0,runStickers=[],runTries=0,runFinished=false;
+let first=null,lock=false,tries=0,found=0,sec=0,timer=null,total=0,streak=0,bestStreak=0,gameOver=false,nextTO=null;
+
+function newRun(){
+  clearTimeout(nextTO);
+  stage=1;runScore=0;runTime=0;runBestStreak=0;runCleared=0;runStickers=[];runTries=0;runFinished=false;
+  $("modal").classList.remove("show");$("toast").classList.remove("show");
+  startStage();
+}
+function startStage(){
+  clearInterval(timer);timer=null;
+  const [c,r]=GRIDS[Math.min(stage,GRIDS.length)-1];
+  total=c*r/2;first=null;lock=false;tries=0;found=0;sec=0;streak=0;bestStreak=0;gameOver=false;
+  $("st").textContent=stage;$("sc").textContent=runScore;$("t").textContent=0;$("n").textContent=0;$("combo").textContent="";
+  $("toast").classList.remove("show");
+  const pool=[...E].sort(()=>Math.random()-.5).slice(0,total);
+  const deck=[...pool,...pool].sort(()=>Math.random()-.5);
+  const bd=$("board");bd.style.gridTemplateColumns=`repeat(${c},1fr)`;
+  bd.innerHTML=deck.map(e=>`<div class="card" data-e="${e}"><div class="in"><div class="back">?</div><div class="face">${e}</div></div></div>`).join("");
+  bd.querySelectorAll(".card").forEach(el=>el.onclick=()=>flip(el));
+}
+function addScore(p){runScore+=p;$("sc").textContent=runScore}
+function flip(el){
+  if(lock||gameOver||runFinished||el.classList.contains("f")||el.classList.contains("m"))return;
+  if(!timer)timer=setInterval(()=>{sec++;$("t").textContent=sec},1000);
+  sfx("flip");
+  el.classList.add("f");
+  if(!first){first=el;return}
+  tries++;$("n").textContent=tries;
+  if(first.dataset.e===el.dataset.e){
+    const a=first;first=null;streak++;bestStreak=Math.max(bestStreak,streak);found++;
+    const pts=100+(streak-1)*50;addScore(pts);
+    setTimeout(()=>{a.classList.add("m");el.classList.add("m");a.classList.remove("f");el.classList.remove("f")},250);
+    setTimeout(()=>sfx("match",streak),200);
+    if(streak>=2){$("combo").textContent=`🔥 ${streak}콤보! +${pts}`;setTimeout(()=>sfx("combo",streak),420)}
+    else $("combo").textContent=`+${pts}`;
+    if(found==total)setTimeout(stageClear,900);
+  }else{
+    streak=0;$("combo").textContent="";
+    lock=true;const a=first;first=null;
+    setTimeout(()=>sfx("miss"),250);
+    setTimeout(()=>{a.classList.remove("f");el.classList.remove("f");lock=false},750);
+  }
+}
+
+/* ================= 스테이지 클리어 → 자동으로 다음 판 ================= */
+const STICKERS=[
+ ["🐶","멍멍이","c"],["🐱","야옹이","c"],["🐰","토끼","c"],["🐼","판다","c"],["🐥","병아리","c"],["🐸","개구리","c"],["🐷","꿀꿀이","c"],["🐨","코알라","c"],
+ ["🦊","여우","r"],["🦁","사자","r"],["🐯","호랑이","r"],["🐧","펭귄","r"],["🐙","문어","r"],["🦄","유니콘","r"],
+ ["🐉","용","l"],["👑","왕관","l"],["💎","다이아","l"]
+];
+const FORT=[
+ "오늘은 뜻밖의 좋은 소식이 들려와요 📩","작은 행운이 주머니 속에 숨어 있어요 🍀","점심 메뉴 선택이 오늘의 대박! 🍱",
+ "기억력이 최고조! 시험·업무 모두 순조로워요 🧠","오랜 친구에게 연락 오면 반갑게 받아보세요 📞",
+ "오늘 만나는 사람이 귀인이에요 ✨","하던 일에 막판 스퍼트가 통하는 날 🚀","웃으면 복이 와요, 지금 한번 웃어볼까요? 😄",
+ "뜻하지 않은 곳에서 용돈이 생길지도? 💰","오늘 저녁은 맛있는 게 기다려요 🍖"
+];
+function pickSticker(){
+  const r=Math.random(),g=r<.06?"l":r<.3?"r":"c";
+  const list=STICKERS.filter(s=>s[2]===g);
+  return list[Math.floor(Math.random()*list.length)];
+}
+function getColl(){try{return JSON.parse(store.get("coll")||"{}")}catch(e){return{}}}
+function stageClear(){
+  clearInterval(timer);timer=null;gameOver=true;
+  const par=total*2;
+  const stars=tries<=par*1.4?3:tries<=par*2.2?2:1;
+  const timeBonus=Math.max(0,total*4-sec)*10;
+  const bonus=300+stage*100+stars*100+timeBonus;
+  addScore(bonus);
+  runTime+=sec;runTries+=tries;runBestStreak=Math.max(runBestStreak,bestStreak);runCleared++;
+  const s=pickSticker(),coll=getColl(),isNew=!coll[s[0]];
+  coll[s[0]]=(coll[s[0]]||0)+1;store.set("coll",JSON.stringify(coll));
+  runStickers.push(s[0]);
+  const rarity={c:"",r:"✨레어 ",l:"🌈전설 "}[s[2]];
+  sfx("fanfare");if(s[2]!=="c")setTimeout(()=>sfx("rare"),1500);
+  confetti(s[2]==="l"?300:s[2]==="r"?220:160);
+  const app=$("app");app.classList.remove("shake");void app.offsetWidth;app.classList.add("shake");
+  $("tbox").innerHTML=`
+    <h2>🎺 STAGE ${stage} CLEAR!</h2>
+    <div class="stars">${"⭐".repeat(stars)}${"☆".repeat(3-stars)}</div>
+    <div style="font-size:15px">${sec}초 · ${tries}시도 · 최대 ${bestStreak}콤보</div>
+    <div style="font-size:22px;font-weight:bold;color:#2b6cb0;margin:4px 0">클리어 보너스 +${bonus}</div>
+    <div class="big">${s[0]}</div>
+    <div>${rarity}<b>${s[1]}</b> 스티커 <span class="new">${isNew?"NEW!":""}</span></div>
+    <div style="font-size:13px;margin-top:8px;color:#666">잠시 후 STAGE ${stage+1} 시작…</div>`;
+  $("toast").classList.add("show");
+  drawColl();
+  nextTO=setTimeout(()=>{stage++;startStage()},3200);
+}
+
+/* ================= 그만하기 → 최종 스코어 / 순위 ================= */
+function tierOf(s){
+  if(s>=12000)return["👑","전설의 기억왕"];
+  if(s>=7000)return["🥇","두뇌 마스터"];
+  if(s>=3500)return["🥈","기억력 고수"];
+  if(s>=1200)return["🥉","센스 있는 도전자"];
+  return["🌱","새싹 도전자"];
+}
+function getRank(){try{return JSON.parse(store.get("rank")||"[]")}catch(e){return[]}}
+function quit(){
+  if(runFinished)return;
+  runFinished=true;clearTimeout(nextTO);clearInterval(timer);timer=null;
+  $("toast").classList.remove("show");
+  // 진행 중이던 판의 시간도 합산
+  if(!gameOver)runTime+=sec;
+  const myScore=runScore,tier=tierOf(myScore);
+  let rank=getRank(),pos=0,entry=null;
+  if(myScore>0){
+    entry={s:myScore,st:runCleared,d:new Date().toISOString().slice(0,10),id:Date.now()};
+    rank.push(entry);rank.sort((a,b)=>b.s-a.s);rank=rank.slice(0,10);
+    store.set("rank",JSON.stringify(rank));
+    pos=rank.findIndex(r=>r.id===entry.id)+1; // 0이면 10위 밖
+  }
+  sfx("end");
+  if(pos===1&&rank.length>1||(pos===1&&rank.length===1&&myScore>0)){confetti(260);sfx("fanfare")}
+  const fort=FORT[Math.floor(Math.random()*FORT.length)];
+  const rows=rank.length?rank.map((r,i)=>`<tr class="${entry&&r.id===entry.id?"me":""}"><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${r.s.toLocaleString()}점</td><td>${r.st}판</td><td>${r.d}</td></tr>`).join(""):`<tr><td colspan="4">아직 기록이 없어요</td></tr>`;
+  const posTxt=myScore===0?"점수를 얻으면 순위에 기록돼요!":pos?`내 순위 <b class="new">${pos}위</b> / ${rank.length}개 기록 중`:"이번 기록은 TOP10 밖이에요";
+  $("mbox").innerHTML=`
+    <h2 style="margin:0">🏁 게임 종료</h2>
+    <div class="score">${myScore.toLocaleString()}점</div>
+    <div class="tier">${tier[0]} ${tier[1]}</div>
+    <div style="font-size:14px;line-height:1.7">클리어 <b>${runCleared}</b>판 · 최대 콤보 <b>${runBestStreak}</b> · 총 시간 <b>${runTime}</b>초 · 시도 <b>${runTries+(gameOver?0:tries)}</b>회</div>
+    <div style="margin:6px 0">이번에 얻은 스티커<br><span class="stk">${runStickers.length?runStickers.join(" "):"-"}</span></div>
+    <div style="margin-top:8px">${posTxt}</div>
+    <table><tr><th></th><th>점수</th><th>클리어</th><th>날짜</th></tr>${rows}</table>
+    <div style="font-size:11px;color:#888">※ 순위는 이 기기에 저장된 내 기록 TOP10입니다</div>
+    <div class="fort">🔮 오늘의 한 줄 운세<br>${fort}</div>
+    <div class="bar"><button onclick="newRun()">🔄 다시 도전</button><button class="g" onclick="shareRes(${myScore},'${tier[1]}')">📋 결과 복사</button></div>`;
+  $("modal").classList.add("show");
+}
+function shareRes(score,tier){
+  const t=`알짜 짝맞추기 ${score.toLocaleString()}점 (${tier}) · ${runCleared}판 클리어 — 나도 도전해보세요! ${location.href}`;
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>alert("결과가 복사됐어요! 블로그 댓글에 붙여넣기 해보세요."),()=>prompt("복사해서 사용하세요",t));
+}
+function drawColl(){
+  const c=getColl();
+  $("coll").innerHTML=`<small>🐾 스티커북 ${Object.keys(c).length}/${STICKERS.length}종 (판을 깰 때마다 랜덤 획득)</small>`+
+   STICKERS.map(s=>`<span class="${c[s[0]]?"":"lock"}" title="${s[1]}">${c[s[0]]?s[0]:"❔"}</span>`).join("");
+}
+function toggleColl(){drawColl();$("coll").classList.toggle("show")}
+
+/* ================= 폭죽 ================= */
+const cv=$("fx"),cx=cv.getContext("2d");let parts=[],raf=null;
+function size(){cv.width=innerWidth;cv.height=innerHeight}size();addEventListener("resize",size);
+function confetti(n){
+  const cols=["#e8590c","#2b6cb0","#fcc419","#40c057","#f06595","#7950f2"];
+  for(const sx of [.2,.5,.8])for(let i=0;i<n/3;i++)parts.push({x:innerWidth*sx,y:innerHeight*.55,vx:(Math.random()-.5)*18,vy:-Math.random()*17-5,g:.38,s:5+Math.random()*7,c:cols[i%cols.length],r:Math.random()*6,vr:(Math.random()-.5)*.4,life:150+Math.random()*70});
+  if(!raf)loop();
+}
+function loop(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  parts=parts.filter(p=>p.life>0&&p.y<cv.height+20);
+  parts.forEach(p=>{p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life--;cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);cx.restore()});
+  raf=parts.length?requestAnimationFrame(loop):null;
+}
+
+newRun();
+</script>
+</body>
+</html>
