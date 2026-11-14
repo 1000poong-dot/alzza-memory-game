@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>알짜 짝맞추기 - 무료 두뇌 게임</title>
-<meta name="description" content="설치 없이 바로 즐기는 카드 짝맞추기. 스테이지가 이어지는 연속 도전, 콤보, 스티커 수집, 내 기록 순위!">
+<title>ARIA 관찰력 짝맞추기 - 무료 웹게임</title>
+<meta name="description" content="ARIA의 관찰력 훈련 게임. 설치 없이 바로, 스테이지가 이어지는 짝맞추기 · 콤보 · 스티커 수집 · 내 기록 순위.">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:-apple-system,"Malgun Gothic",sans-serif;background:#f4f1ea;color:#2b2b2b;min-height:100vh;overflow-x:hidden}
@@ -58,7 +58,7 @@ tr.me{background:#ffe8cc;font-weight:bold}
 </head>
 <body>
 <div id="app">
-<h1>🃏 알짜 짝맞추기</h1>
+<h1>🃏 ARIA 관찰력 짝맞추기</h1>
 <div class="hud">
   <div>스테이지 <b id="st">1</b></div>
   <div>점수 <b id="sc">0</b></div>
@@ -73,6 +73,8 @@ tr.me{background:#ffe8cc;font-weight:bold}
   <button class="r" onclick="quit()">🏁 그만하기</button>
 </div>
 <div id="coll"></div>
+<p style="font-size:13px;color:#777;margin:4px 0 18px;text-align:center">보이는 것을 천천히 관찰하는 연습 ·
+<a href="https://blog.naver.com/koreaalzza" target="_blank" rel="noopener" style="color:#2b6cb0">ARIA 블로그 '관점의 기록'</a></p>
 </div>
 <canvas id="fx"></canvas>
 <div id="toast"><div class="t" id="tbox"></div></div>
@@ -320,7 +322,7 @@ function quit(){
   $("modal").classList.add("show");
 }
 function shareRes(score,tier){
-  const t=`알짜 짝맞추기 ${score.toLocaleString()}점 (${tier}) · ${runCleared}판 클리어 — 나도 도전해보세요! ${location.href}`;
+  const t=`ARIA 관찰력 짝맞추기 ${score.toLocaleString()}점 (${tier}) · ${runCleared}판 클리어 — 나도 도전해보세요! ${location.href}`;
   (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>alert("결과가 복사됐어요! 블로그 댓글에 붙여넣기 해보세요."),()=>prompt("복사해서 사용하세요",t));
 }
 function drawColl(){
