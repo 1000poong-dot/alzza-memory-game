@@ -25,7 +25,9 @@ button.r{background:#e03131}
 .in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
 .card.f .in,.card.m .in{transform:rotateY(180deg)}
 .face,.back{position:absolute;inset:0;border-radius:12px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden}
-.back{background:#2b6cb0;color:#fff;font-size:24px}
+.back{background:radial-gradient(circle at 25% 25%,#ffffff40 0 2px,transparent 3px) 0 0/18px 18px,linear-gradient(135deg,var(--b1,#2b6cb0),var(--b2,#1c4b82));color:#fff;font-size:clamp(20px,6vw,32px);border:3px solid #ffffff66;box-shadow:inset 0 0 14px #0004}
+.back span{opacity:.85;text-shadow:0 2px 4px #0006}
+#theme{font-size:14px;font-weight:bold;color:#555;margin:2px 0}
 .face{background:#fff;transform:rotateY(180deg);font-size:clamp(22px,7vw,42px);box-shadow:0 1px 4px #0003}
 .card.m .face{background:#d3f9d8;animation:pop .45s}
 @keyframes pop{40%{transform:rotateY(180deg) scale(1.25)}}
@@ -65,6 +67,7 @@ tr.me{background:#ffe8cc;font-weight:bold}
   <div>시간 <b id="t">0</b>초</div>
   <div>시도 <b id="n">0</b></div>
 </div>
+<div id="theme"></div>
 <div id="combo"></div>
 <div id="board"></div>
 <div class="bar">
@@ -86,7 +89,14 @@ const store={
   get(k){try{return localStorage.getItem(k)}catch(e){return k in mem?mem[k]:null}},
   set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=String(v)}}
 };
-const E=["🍎","🍊","🍋","🍇","🍓","🍑","🥝","🍉","🍒","🥑","🌽","🥕","🍔","🍕","🍩","🍪","🧀","🍙"];
+/* 스테이지마다 테마가 바뀝니다: 이름 / 카드 뒷면 색·문양 / 그림 18종 */
+const THEMES=[
+ {name:"과일 정원",emb:"🌿",c1:"#2f9e44",c2:"#1b6b2b",f:["🍎","🍊","🍋","🍇","🍓","🍑","🥝","🍉","🍒","🥑","🍍","🍌","🥭","🍐","🫐","🍈","🥥","🍅"]},
+ {name:"귀여운 동물",emb:"🐾",c1:"#f08c00",c2:"#c2410c",f:["🐶","🐱","🐰","🐼","🐥","🐸","🐷","🐨","🦊","🦁","🐯","🐧","🐙","🦄","🐮","🐵","🐹","🐻"]},
+ {name:"우주 탐험",emb:"✨",c1:"#5f3dc4",c2:"#1a1b4b",f:["🚀","🛸","🌍","🌙","⭐","☄️","🪐","🌞","👽","🛰️","🔭","🌠","🌈","⚡","🌟","🌌","🌕","🔥"]},
+ {name:"간식 파티",emb:"🍬",c1:"#e64980",c2:"#a61e4d",f:["🍔","🍕","🍩","🍪","🧀","🍙","🍦","🌮","🍣","🍿","🥐","🍰","🍫","🍜","🥞","🧁","🍭","🥨"]},
+ {name:"떠나는 여행",emb:"🧭",c1:"#1c7ed6",c2:"#0b3d91",f:["🚗","🚌","🚲","✈️","🚂","⛵","🏝️","🗼","🏰","🗽","🎡","🏔️","🌋","⛺","🚁","🛵","🎢","🌉"]}
+];
 const GRIDS=[[4,3],[4,4],[5,4],[6,5],[6,6]]; // 스테이지가 오를수록 커짐 (5 이후는 6x6 유지)
 
 /* ================= 사운드 (WebAudio 합성, 외부 파일 없음) ================= */
@@ -186,11 +196,30 @@ function setMusic(on){
   }
   $("bm").textContent=on?"🔇 음악 끄기":"🎵 음악 켜기";
 }
-function toggleMusic(){setMusic(!musicOn)}
+function toggleMusic(){setMusic(!musicOn);store.set("music",musicOn?"1":"0")}
+/* 난이도: 카드 수는 5판까지 늘고, 이후에도 판마다 미리보기 시간이 6%씩 짧아진다 (최소 0.9초) */
+function gridOf(st){return GRIDS[Math.min(st,GRIDS.length)-1]}
+function peekMs(st){const [c,r]=gridOf(st);return Math.max(900,Math.round((1500+c*r/2*150)*(1-.06*(st-1))))}
+/* 브라우저는 클릭 없이 소리를 못 내게 막으므로, 시작 화면의 [시작하기] 클릭으로 음악을 켠다 (기본 켜짐) */
+function showIntro(){
+  $("mbox").innerHTML=`
+    <h2 style="margin:0 0 6px">🃏 ARIA 관찰력 짝맞추기</h2>
+    <div style="font-size:14px;line-height:1.7;margin:8px 0">
+      판이 시작되면 <b>모든 그림이 잠깐 공개</b>됩니다.<br>위치를 눈에 담고, 카드가 뒤집히면 같은 그림을 찾아보세요.<br>
+      연속으로 맞추면 콤보, 깰 때마다 다음 테마가 열려요.</div>
+    <div class="stat" style="font-size:12px;color:#888">🎵 배경음악이 함께 재생됩니다 (화면의 버튼으로 언제든 끌 수 있어요)</div>
+    <div class="bar"><button onclick="begin()" style="font-size:18px;padding:12px 26px">▶ 시작하기</button></div>`;
+  $("modal").classList.add("show");
+}
+function begin(){
+  $("modal").classList.remove("show");
+  if(store.get("music")!=="0")setMusic(true);   // 이전에 직접 끈 적이 있으면 꺼진 채로 시작
+  newRun();
+}
 
 /* ================= 게임 ================= */
 let stage=1,runScore=0,runTime=0,runBestStreak=0,runCleared=0,runStickers=[],runTries=0,runFinished=false;
-let first=null,lock=false,tries=0,found=0,sec=0,timer=null,total=0,streak=0,bestStreak=0,gameOver=false,nextTO=null;
+let first=null,lock=false,tries=0,found=0,sec=0,timer=null,total=0,streak=0,bestStreak=0,gameOver=false,nextTO=null,peekTO=null,peekIV=null;
 
 function newRun(){
   clearTimeout(nextTO);
@@ -200,15 +229,28 @@ function newRun(){
 }
 function startStage(){
   clearInterval(timer);timer=null;
-  const [c,r]=GRIDS[Math.min(stage,GRIDS.length)-1];
+  const [c,r]=gridOf(stage);
   total=c*r/2;first=null;lock=false;tries=0;found=0;sec=0;streak=0;bestStreak=0;gameOver=false;
   $("st").textContent=stage;$("sc").textContent=runScore;$("t").textContent=0;$("n").textContent=0;$("combo").textContent="";
   $("toast").classList.remove("show");
-  const pool=[...E].sort(()=>Math.random()-.5).slice(0,total);
+  const th=THEMES[(stage-1)%THEMES.length];
+  $("theme").textContent=`${th.emb} ${th.name}`;
+  const pool=[...th.f].sort(()=>Math.random()-.5).slice(0,total);
   const deck=[...pool,...pool].sort(()=>Math.random()-.5);
   const bd=$("board");bd.style.gridTemplateColumns=`repeat(${c},1fr)`;
-  bd.innerHTML=deck.map(e=>`<div class="card" data-e="${e}"><div class="in"><div class="back">?</div><div class="face">${e}</div></div></div>`).join("");
+  bd.style.setProperty("--b1",th.c1);bd.style.setProperty("--b2",th.c2);
+  // 처음에는 모든 카드를 앞면으로 펼쳐 두었다가(class f) 잠깐 보여준 뒤 뒤집는다
+  bd.innerHTML=deck.map(e=>`<div class="card f" data-e="${e}"><div class="in"><div class="back"><span>${th.emb}</span></div><div class="face">${e}</div></div></div>`).join("");
   bd.querySelectorAll(".card").forEach(el=>el.onclick=()=>flip(el));
+  lock=true;clearTimeout(peekTO);clearInterval(peekIV);
+  const ms=peekMs(stage),end=Date.now()+ms;
+  const say=()=>{$("combo").textContent=`👀 기억하세요! ${Math.max(1,Math.ceil((end-Date.now())/1000))}`};
+  say();peekIV=setInterval(say,200);
+  peekTO=setTimeout(()=>{
+    clearInterval(peekIV);
+    bd.querySelectorAll(".card").forEach(el=>el.classList.remove("f"));
+    lock=false;$("combo").textContent="시작!";
+  },ms);
 }
 function addScore(p){runScore+=p;$("sc").textContent=runScore}
 function flip(el){
@@ -274,7 +316,7 @@ function stageClear(){
     <div style="font-size:22px;font-weight:bold;color:#2b6cb0;margin:4px 0">클리어 보너스 +${bonus}</div>
     <div class="big">${s[0]}</div>
     <div>${rarity}<b>${s[1]}</b> 스티커 <span class="new">${isNew?"NEW!":""}</span></div>
-    <div style="font-size:13px;margin-top:8px;color:#666">잠시 후 STAGE ${stage+1} 시작…</div>`;
+    <div style="font-size:13px;margin-top:8px;color:#666">⬆ 난이도 UP! STAGE ${stage+1} · 카드 ${gridOf(stage+1)[0]*gridOf(stage+1)[1]}장 · 미리보기 ${(peekMs(stage+1)/1000).toFixed(1)}초</div>`;
   $("toast").classList.add("show");
   drawColl();
   nextTO=setTimeout(()=>{stage++;startStage()},3200);
@@ -291,7 +333,7 @@ function tierOf(s){
 function getRank(){try{return JSON.parse(store.get("rank")||"[]")}catch(e){return[]}}
 function quit(){
   if(runFinished)return;
-  runFinished=true;clearTimeout(nextTO);clearInterval(timer);timer=null;
+  runFinished=true;clearTimeout(nextTO);clearTimeout(peekTO);clearInterval(peekIV);clearInterval(timer);timer=null;
   $("toast").classList.remove("show");
   // 진행 중이던 판의 시간도 합산
   if(!gameOver)runTime+=sec;
@@ -347,7 +389,7 @@ function loop(){
   raf=parts.length?requestAnimationFrame(loop):null;
 }
 
-newRun();
+showIntro();
 </script>
 </body>
 </html>
